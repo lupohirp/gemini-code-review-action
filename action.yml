@@ -11,9 +11,9 @@
 #  limitations under the License.
 
 name: "Code Review by Gemini AI"
-description: "Automatically create a comment about differences in a pull request by Gemini AI"
+description: "Automatically create code review comments on pull requests using Google Gemini AI"
 
-author: "rubensflinco"
+author: "lupohirp"
 
 inputs:
   gemini_api_key:
@@ -35,40 +35,44 @@ inputs:
     required: true
     default: "${{ github.event.pull_request.head.sha }}"
   model:
-    description: "GPT model"
+    description: "Gemini model name"
     required: true
-    default: "text-davinci-003"
+    default: "gemini-flash-latest"
   extra_prompt:
-    description: "Extra prompt for GPT"
+    description: "Extra prompt or system instructions for Gemini"
     required: false
     default: ""
   temperature:
-    description: "Temperature for GPT"
+    description: "Temperature for Gemini generation"
     required: false
     default: "0.7"
   max_tokens:
-    description: "Max tokens for GPT"
+    description: "Max tokens for Gemini generation"
     required: false
-    default: "256"
+    default: "8192"
   top_p:
-    description: "Top p for GPT"
+    description: "Top p for Gemini generation"
     required: false
-    default: "1"
+    default: "0.95"
   frequency_penalty:
-    description: "Frequency penalty for GPT"
+    description: "Frequency penalty"
     required: false
     default: "0.0"
   presence_penalty:
-    description: "Presence penalty for GPT"
+    description: "Presence penalty"
     required: false
     default: "0.0"
   pull_request_diff:
     description: "Pull request diff"
     required: true
   pull_request_chunk_size:
-    description: "Pull request chunk size"
+    description: "Pull request chunk size in characters"
     required: false
     default: "3500"
+  timeout:
+    description: "Timeout in seconds per Gemini request"
+    required: false
+    default: "180"
   log_level:
     description: "Log level"
     required: false
@@ -104,4 +108,6 @@ runs:
     - "--frequency-penalty=${{ inputs.frequency_penalty }}"
     - "--presence-penalty=${{ inputs.presence_penalty }}"
     - "--diff-chunk-size=${{ inputs.pull_request_chunk_size }}"
+    - "--timeout=${{ inputs.timeout }}"
+    - "--log-level=${{ inputs.log_level }}"
     - "--diff=${{ inputs.pull_request_diff }}"
