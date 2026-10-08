@@ -37,7 +37,7 @@ inputs:
   model:
     description: "Gemini model name"
     required: true
-    default: "gemini-flash-latest"
+    default: "gemini-3.8-flash"
   extra_prompt:
     description: "Extra prompt or system instructions for Gemini"
     required: false
@@ -68,7 +68,7 @@ inputs:
   pull_request_chunk_size:
     description: "Pull request chunk size in characters"
     required: false
-    default: "3500"
+    default: "65000"
   timeout:
     description: "Timeout in seconds per Gemini request"
     required: false
