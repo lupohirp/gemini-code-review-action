@@ -92,7 +92,7 @@ branding:
 
 runs:
   using: docker
-  image: Dockerfile
+  image: docker://ghcr.io/lupohirp/gemini-code-review-action:latest
   env:
     GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
     GITHUB_TOKEN: ${{ inputs.github_token }}
