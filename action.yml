@@ -72,7 +72,7 @@ inputs:
   timeout:
     description: "Timeout in seconds per Gemini request"
     required: false
-    default: "180"
+    default: "30"
   log_level:
     description: "Log level"
     required: false

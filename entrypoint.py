@@ -104,7 +104,7 @@ def chunk_string(input_string: str, chunk_size: int) -> List[str]:
 
 
 def is_rate_limit_error(exc: Exception) -> bool:
-    """Check if exception is caused by 429 quota or rate limits."""
+    """Check if exception is caused by 429 quota or rate limits or deadline."""
     msg = str(exc).lower()
     return (
         "429" in msg
@@ -112,12 +112,18 @@ def is_rate_limit_error(exc: Exception) -> bool:
         or "resourceexhausted" in msg
         or "rate limit" in msg
         or "exceeded" in msg
+        or "deadline" in msg
+        or "504" in msg
+        or "timeout" in msg
+        or "timed out" in msg
     )
 
 
-def send_message_with_timeout(convo, message: str, timeout_seconds: int = 180) -> str:
-    """Send a message to a Gemini chat session with timeout."""
-    request_options = {"timeout": timeout_seconds}
+def send_message_with_timeout(convo, message: str, timeout_seconds: int = 30) -> str:
+    """Send a message to a Gemini chat session with strict timeout and no internal retries."""
+    # Setting retry=None prevents google.api_core from making duplicate retry calls
+    # in the background when quota limits or slow responses occur.
+    request_options = {"timeout": float(timeout_seconds), "retry": None}
     response = convo.send_message(message, request_options=request_options)
     if response and response.text:
         return response.text
@@ -132,7 +138,7 @@ def get_review_for_model(
         max_tokens: int,
         top_p: float,
         prompt_chunk_size: int,
-        timeout_seconds: int = 180
+        timeout_seconds: int = 30
 ) -> Tuple[List[str], str]:
     """Execute review for a specific model."""
     review_prompt = get_review_prompt(extra_prompt=extra_prompt)
@@ -158,7 +164,7 @@ def get_review_for_model(
         if idx > 1:
             time.sleep(3)
 
-        logger.info(f"[{model}] Processing chunk {idx}/{total_chunks} ({len(chunked_diff)} chars)...")
+        logger.info(f"[{model}] Processing chunk {idx}/{total_chunks} ({len(chunked_diff)} chars, timeout {timeout_seconds}s)...")
         convo = genai_model.start_chat(history=[
             {
                 "role": "user",
@@ -201,17 +207,17 @@ def execute_review_with_fallback(
         max_tokens: int,
         top_p: float,
         prompt_chunk_size: int,
-        timeout_seconds: int = 180
+        timeout_seconds: int = 30
 ) -> Tuple[List[str], str, str]:
-    """Iterate through candidate models chain: 3.8 -> 3.7 -> 3.5 flash-lite on RPD/quota limit."""
+    """Iterate through candidate models chain: requested model first, then fallback chain on RPD/quota/timeout limit."""
     candidate_models = []
-    if requested_model and requested_model not in FALLBACK_CHAIN:
+    if requested_model:
         candidate_models.append(requested_model)
     for m in FALLBACK_CHAIN:
         if m not in candidate_models:
             candidate_models.append(m)
 
-    logger.info(f"Candidate models rotation chain: {candidate_models}")
+    logger.info(f"Candidate models rotation chain: {candidate_models} (timeout per request: {timeout_seconds}s)")
 
     last_error = None
     for model_name in candidate_models:
@@ -233,7 +239,7 @@ def execute_review_with_fallback(
             last_error = e
             if is_rate_limit_error(e):
                 logger.warning(
-                    f"Quota / Rate limit reached on model '{model_name}' ({e}). "
+                    f"Quota / Rate limit / Deadline reached on model '{model_name}' ({e}). "
                     f"Failing over immediately to next model in chain..."
                 )
             else:
@@ -279,7 +285,7 @@ def format_review_comment(summarized_review: str, chunked_reviews: List[str], mo
 @click.option("--top-p", type=click.FLOAT, required=False, default=0.95, help="Top P")
 @click.option("--frequency-penalty", type=click.FLOAT, required=False, default=0.0, help="Frequency penalty")
 @click.option("--presence-penalty", type=click.FLOAT, required=False, default=0.0, help="Presence penalty")
-@click.option("--timeout", type=click.INT, required=False, default=180, help="Timeout in seconds per Gemini request")
+@click.option("--timeout", type=click.INT, required=False, default=30, help="Timeout in seconds per Gemini request")
 @click.option("--log-level", type=click.STRING, required=False, default="INFO", help="Log level")
 def main(
         diff: str,
